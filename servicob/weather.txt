@@ -1,0 +1,97 @@
+http://api.weatherapi.com/v1/current.json?key=c879a0c2c48a42cbbae184703250303&q=Montes Claros&aqi=no
+
+Response Headers
+{
+  "Transfer-Encoding": "chunked",
+  "Connection": "keep-alive",
+  "Vary": "Accept-Encoding",
+  "CDN-PullZone": "93447",
+  "CDN-Uid": "8fa3a04a-75d9-4707-8056-b7b33c8ac7fe",
+  "CDN-RequestCountryCode": "GB",
+  "x-weatherapi-qpm-left": "5000000",
+  "CDN-ProxyVer": "1.19",
+  "CDN-RequestPullSuccess": "True",
+  "CDN-RequestPullCode": "200",
+  "CDN-CachedAt": "03/03/2025 18:51:53",
+  "CDN-EdgeStorageId": "860",
+  "CDN-Status": "200",
+  "CDN-RequestTime": "2",
+  "CDN-RequestId": "e1b06c907af4250e49fdf33ff169d93e",
+  "CDN-Cache": "MISS",
+  "Cache-Control": "public, max-age=180",
+  "Content-Type": "application/json",
+  "Date": "Mon, 03 Mar 2025 18:51:53 GMT",
+  "Server": "BunnyCDN-DE1-1049"
+}
+
+Response Body
+{
+    "location": {
+        "name": "Montes Claros",
+        "region": "Minas Gerais",
+        "country": "Brazil",
+        "lat": -16.7167,
+        "lon": -43.8667,
+        "tz_id": "America/Sao_Paulo",
+        "localtime_epoch": 1741027901,
+        "localtime": "2025-03-03 15:51"
+    },
+    "current": {
+        "last_updated_epoch": 1741027500,
+        "last_updated": "2025-03-03 15:45",
+        "temp_c": 31.1,
+        "temp_f": 88.0,
+        "is_day": 1,
+        "condition": {
+            "text": "Sunny",
+            "icon": "//cdn.weatherapi.com/weather/64x64/day/113.png",
+            "code": 1000
+        },
+        "wind_mph": 11.2,
+        "wind_kph": 18.0,
+        "wind_degree": 95,
+        "wind_dir": "E",
+        "pressure_mb": 1016.0,
+        "pressure_in": 30.0,
+        "precip_mm": 0.0,
+        "precip_in": 0.0,
+        "humidity": 41,
+        "cloud": 0,
+        "feelslike_c": 30.8,
+        "feelslike_f": 87.4,
+        "windchill_c": 30.5,
+        "windchill_f": 86.9,
+        "heatindex_c": 30.1,
+        "heatindex_f": 86.1,
+        "dewpoint_c": 13.2,
+        "dewpoint_f": 55.8,
+        "vis_km": 10.0,
+        "vis_miles": 6.0,
+        "uv": 5.1,
+        "gust_mph": 12.9,
+        "gust_kph": 20.7
+    }
+}
+
+
+
+
+http://api.weatherapi.com/v1/current.json?key=c879a0c2c48a42cbbae184703250303&q=MontesClaross&aqi=no
+Response Code
+400
+Response Headers
+{
+  "Transfer-Encoding": "chunked",
+  "Connection": "keep-alive",
+  "x-weatherapi-qpm-left": "5000000",
+  "Cache-Control": "public, max-age=5",
+  "Content-Type": "application/json",
+  "Date": "Mon, 03 Mar 2025 18:54:02 GMT"
+}
+Response Body
+{
+    "error": {
+        "code": 1006,
+        "message": "No matching location found."
+    }
+}

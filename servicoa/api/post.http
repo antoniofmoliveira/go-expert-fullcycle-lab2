@@ -1,0 +1,35 @@
+### 200
+POST http://localhost:8080/cep HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+
+{
+    "cep":"39408078"
+}
+
+### 422 - cep tem que ser string
+POST http://localhost:8080/cep HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+
+{
+    "cep":39408078
+}
+
+### 422 - cep tem que ter 8 digitos
+POST http://localhost:8080/cep HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+
+{
+    "cep":"3940807"
+}
+
+### 422 - cep tem que ser numérico
+POST http://localhost:8080/cep HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+
+{
+    "cep":"3940807A"
+}
