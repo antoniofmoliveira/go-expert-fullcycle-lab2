@@ -37,6 +37,13 @@ func (c ceprequest) validate() error {
 	return nil
 }
 
+
+
+func initOtel() {
+	otel.SetTracerProvider(sdktrace.NewTracerProvider())
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+}
+
 func main() {
 
 	sigCh := make(chan os.Signal, 1)
