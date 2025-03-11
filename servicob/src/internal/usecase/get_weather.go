@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/antoniofmoliveira/go-expert-fullcycle-lab1/src/internal/dto"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 // getCep retrieves the cep information from the ViaCEP API.
@@ -123,6 +125,7 @@ func GetWeather(ctx context.Context, cep string) (temps dto.TempResponse, status
 	if err != nil {
 		return dto.TempResponse{}, 500, "Internal Server Error", err
 	}
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header)) // !
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return dto.TempResponse{}, 500, "Internal Server Error", err
