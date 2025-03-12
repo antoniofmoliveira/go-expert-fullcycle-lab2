@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/antoniofmoliveira/go-expert-fullcycle-lab1/src/internal/dto"
+	zipkinhttp "github.com/openzipkin/zipkin-go/middleware/http"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
 )
@@ -108,7 +109,7 @@ func getCep(ctx context.Context, cep string) (rcep dto.Cep, status int, message 
 // 500, "Internal Server Error" if there is an internal error,
 // 503, "Service Unavailable" if the weather api is unavailable,
 // or an error if an unknown error occurs.
-func GetWeather(ctx context.Context, cep string) (temps dto.TempResponse, status int, message string, eror error) {
+func GetWeather(ctx context.Context, cep string, zipkinClient *zipkinhttp.Client) (temps dto.TempResponse, status int, message string, eror error) {
 	rcep, status, message, err := getCep(ctx, cep)
 	if err != nil {
 		return dto.TempResponse{}, status, message, err
@@ -126,7 +127,8 @@ func GetWeather(ctx context.Context, cep string) (temps dto.TempResponse, status
 		return dto.TempResponse{}, 500, "Internal Server Error", err
 	}
 	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header)) // !
-	res, err := http.DefaultClient.Do(req)
+	// res, err := http.DefaultClient.Do(req)
+	res, err := zipkinClient.Do(req)
 	if err != nil {
 		return dto.TempResponse{}, 500, "Internal Server Error", err
 	}

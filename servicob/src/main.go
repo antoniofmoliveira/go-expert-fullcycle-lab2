@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,9 +21,16 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/openzipkin/zipkin-go"
+	"github.com/openzipkin/zipkin-go/model"
+
+	zipkinhttp "github.com/openzipkin/zipkin-go/middleware/http"
+	httpreporter "github.com/openzipkin/zipkin-go/reporter/http"
 )
 
 var OtelTracer trace.Tracer
+var ZipkinClient *zipkinhttp.Client
 
 func initOtel(ctx context.Context) {
 
@@ -70,11 +79,39 @@ func main() {
 
 	initOtel(ctx)
 
+	// init zipkin
+	reporter := httpreporter.NewReporter("http://zipkin-all-in-one:9411/api/v2/spans")
+	localEndpoint := &model.Endpoint{ServiceName: "servicob", IPv4: getOutboundIP(), Port: 8081}
+	sampler, err := zipkin.NewCountingSampler(1)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tracer, err := zipkin.NewTracer(
+		reporter,
+		zipkin.WithSampler(sampler),
+		zipkin.WithLocalEndpoint(localEndpoint),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// end of initzipkin
+
 	ctx = context.Background()
 	ctx, span := OtelTracer.Start(ctx, "iniciando Servico B")
 	defer span.End()
 
-	http.HandleFunc("/", weatherHandler)
+	ZipkinClient, err = zipkinhttp.NewClient(tracer, zipkinhttp.ClientTrace(true))
+	if err != nil {
+		log.Fatalf("unable to create client: %+v\n", err)
+	}
+
+	router := http.NewServeMux()
+	serverMiddleware := zipkinhttp.NewServerMiddleware(
+		tracer, zipkinhttp.TagResponseSize(true),
+	)
+	http.Handle("/", serverMiddleware(router))
+
+	router.HandleFunc("/", weatherHandler)
 	http.ListenAndServe(":8081", nil)
 
 	slog.Info("Servico B")
@@ -87,17 +124,22 @@ func main() {
 }
 
 func weatherHandler(w http.ResponseWriter, r *http.Request) {
+	//otel
 	carrier := propagation.HeaderCarrier(r.Header)
 	ctx := r.Context()
 	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
 	ctx, span := OtelTracer.Start(ctx, "servicob")
 	defer span.End()
 
+	//zipkin
+	zspan := zipkin.SpanFromContext(r.Context())
+	ctx = zipkin.NewContext(ctx, zspan)
+
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	cep := r.URL.Query().Get("cep")
-	temps, status, message, err := usecase.GetWeather(ctx, cep)
+	temps, status, message, err := usecase.GetWeather(ctx, cep, ZipkinClient)
 	if err != nil {
 		slog.Error(err.Error())
 		http.Error(w, message, status)
@@ -116,4 +158,17 @@ func weatherHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(j))
+}
+
+// Get preferred outbound ip of this machine
+func getOutboundIP() net.IP {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	return localAddr.IP
 }

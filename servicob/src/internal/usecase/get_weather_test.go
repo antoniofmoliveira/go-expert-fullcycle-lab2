@@ -52,7 +52,7 @@ func TestGetWeather(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, gotStatus, gotMessage, err := GetWeather(tt.args.ctx, tt.args.cep)
+			_, gotStatus, gotMessage, err := GetWeather(tt.args.ctx, tt.args.cep, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetWeather() error = %v, wantErr %v", err, tt.wantErr)
 				return

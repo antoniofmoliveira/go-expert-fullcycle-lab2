@@ -23,6 +23,15 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
+
+	"log"
+	"net"
+
+	"github.com/openzipkin/zipkin-go"
+	"github.com/openzipkin/zipkin-go/model"
+
+	zipkinhttp "github.com/openzipkin/zipkin-go/middleware/http"
+	httpreporter "github.com/openzipkin/zipkin-go/reporter/http"
 )
 
 type ceprequest struct {
@@ -39,6 +48,7 @@ func (c ceprequest) validate() error {
 }
 
 var OtelTracer trace.Tracer
+var zipkinClient *zipkinhttp.Client
 
 func initOtel(ctx context.Context) {
 
@@ -87,12 +97,40 @@ func main() {
 
 	initOtel(ctx)
 
+	// init zipkin
+	reporter := httpreporter.NewReporter("http://zipkin-all-in-one:9411/api/v2/spans")
+	localEndpoint := &model.Endpoint{ServiceName: "servicoa", IPv4: getOutboundIP(), Port: 8080}
+	sampler, err := zipkin.NewCountingSampler(1)
+	if err != nil {
+		log.Fatal(err)
+	}
+	tracer, err := zipkin.NewTracer(
+		reporter,
+		zipkin.WithSampler(sampler),
+		zipkin.WithLocalEndpoint(localEndpoint),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// end of initzipkin
+
 	ctx = context.Background()
 	ctx, span := OtelTracer.Start(ctx, "iniciando Servico A")
 	defer span.End()
-	http.HandleFunc("POST /cep", cepHandler)
 
-	http.ListenAndServe(":8080", nil)
+	zipkinClient, err = zipkinhttp.NewClient(tracer, zipkinhttp.ClientTrace(true))
+	if err != nil {
+		log.Fatalf("unable to create client: %+v\n", err)
+	}
+
+	router := http.NewServeMux()
+	serverMiddleware := zipkinhttp.NewServerMiddleware(
+		tracer, zipkinhttp.TagResponseSize(true),
+	)
+	http.Handle("/", serverMiddleware(router))
+	router.HandleFunc("POST /cep", cepHandler)
+
+	http.ListenAndServe(":8080", router)
 
 	slog.Info("Servico A")
 	select {
@@ -104,12 +142,18 @@ func main() {
 }
 
 func cepHandler(w http.ResponseWriter, r *http.Request) {
+	//otel
 	carrier := propagation.HeaderCarrier(r.Header)
 	ctx := r.Context()
 	ctx = otel.GetTextMapPropagator().Extract(ctx, carrier)
 	ctx, span := OtelTracer.Start(ctx, "servicoa")
 	defer span.End()
 
+	//zipkin
+	zspan := zipkin.SpanFromContext(r.Context())
+	ctx = zipkin.NewContext(ctx, zspan)
+
+	//handler
 	body, error := io.ReadAll(r.Body)
 	if error != nil {
 		http.Error(w, error.Error(), http.StatusInternalServerError)
@@ -134,9 +178,10 @@ func cepHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header)) // !
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(req.Header)) // IMPORTANT
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := zipkinClient.Do(req)
+
 	if err != nil {
 		slog.Error(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -160,4 +205,17 @@ func cepHandler(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	}
+}
+
+// Get preferred outbound ip of this machine
+func getOutboundIP() net.IP {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	return localAddr.IP
 }

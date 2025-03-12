@@ -1,7 +1,7 @@
 # version: '3'
 services:
   jaeger-all-in-one:
-    container_name:   jaeger-all-in-one
+    container_name: jaeger-all-in-one
     image: jaegertracing/all-in-one:latest
     restart: always
     ports:
@@ -10,21 +10,21 @@ services:
       - "14250"
 
   zipkin-all-in-one:
-    container_name:   zipkin-all-in-one
+    container_name: zipkin-all-in-one
     image: openzipkin/zipkin:latest
     restart: always
     ports:
       - "9411:9411"
 
-#   prometheus:
-#     container_name: prometheus
-#     image: prom/prometheus:latest
-#     restart: always
-#     volumes:      exporters: [otlp, debug]
+  #   prometheus:
+  #     container_name: prometheus
+  #     image: prom/prometheus:latest
+  #     restart: always
+  #     volumes:      exporters: [otlp, debug]
 
-#       - ./.docker/prometheus.yaml:/etc/prometheus/prometheus.yml
-#     ports:
-#       - "9090:9090"
+  #       - ./.docker/prometheus.yaml:/etc/prometheus/prometheus.yml
+  #     ports:
+  #       - "9090:9090"
 
   otel-collector:
     container_name: otel-collector
@@ -49,6 +49,7 @@ services:
     depends_on:
       - jaeger-all-in-one
       - otel-collector
+      - zipkin-all-in-one
     ports:
       - "8080:8080"
     # command: [ "tail", "-f", "/dev/null" ]
@@ -60,6 +61,7 @@ services:
     depends_on:
       - jaeger-all-in-one
       - otel-collector
+      - zipkin-all-in-one
     ports:
       - "8081:8081"
     # command: [ "tail", "-f", "/dev/null" ]
